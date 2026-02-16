@@ -42,7 +42,7 @@ fn main() -> Result<(), eframe::Error> {
         .with_decorations(false) // Borderless
         .with_transparent(true)  // Transparent
         .with_always_on_top()
-        .with_inner_size([320.0, 60.0]) // Initial size
+        .with_inner_size([80.0, 120.0]) // Vertical layout: narrow and tall
         .with_position(egui::Pos2::new(100.0, 100.0)); // Initial
 
     #[cfg(target_os = "windows")]

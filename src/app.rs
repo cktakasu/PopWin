@@ -33,9 +33,12 @@ impl App for PopWinApp {
                     self.position = position;
                     self.visible = true;
 
-                    // TODO: Window positioning would require platform-specific Win32 API calls
-                    // For PoC, the window appears at a fixed position
+                    // Position toolbar to the left of the selection
+                    // Offset left by toolbar width (estimated 80px) and align vertically with selection
+                    let x = (position.0 - 90) as f32;
+                    let y = position.1 as f32;
 
+                    ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(egui::Pos2::new(x, y)));
                     ctx.request_repaint();
                 }
                 AppEvent::SelectionCleared => {
@@ -59,8 +62,8 @@ impl App for PopWinApp {
             .inner_margin(8.0);
 
         egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.style_mut().spacing.item_spacing = egui::vec2(5.0, 0.0);
+            ui.vertical(|ui| {
+                ui.style_mut().spacing.item_spacing = egui::vec2(0.0, 5.0);
 
                 if ui.button("📋 Copy").clicked() {
                     actions::copy_selection(&self.selected_text);
