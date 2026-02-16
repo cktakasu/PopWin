@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // Hide console in release
 
 use eframe::egui;
-use std::thread;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::info;
 
@@ -42,7 +41,7 @@ fn main() -> Result<(), eframe::Error> {
     let mut viewport_builder = egui::ViewportBuilder::default()
         .with_decorations(false) // Borderless
         .with_transparent(true)  // Transparent
-        .with_always_on_top(true)
+        .with_always_on_top()
         .with_inner_size([320.0, 60.0]) // Initial size
         .with_position(egui::Pos2::new(100.0, 100.0)); // Initial
 

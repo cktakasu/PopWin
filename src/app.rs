@@ -1,6 +1,5 @@
 use eframe::{egui, App, CreationContext, Frame};
 use crossbeam_channel::Receiver;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::AppEvent;
 use crate::actions;
@@ -25,7 +24,7 @@ impl PopWinApp {
 }
 
 impl App for PopWinApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
         // Poll for events from the background thread
         while let Ok(event) = self.event_receiver.try_recv() {
             match event {
@@ -33,15 +32,10 @@ impl App for PopWinApp {
                     self.selected_text = text;
                     self.position = position;
                     self.visible = true;
-                    
-                    // Move window to mouse position + offset
-                    // Note: eframe window positioning might be limited depending on backend,
-                    // but we try to set it via frame if possible, or use Win32 API in main loop.
-                    // For now, let's assume frame.set_window_pos works or we handled it main.
-                    let x = position.0 as f32;
-                    let y = position.1 as f32 + 20.0; // Offset below cursor
-                    frame.set_window_pos(egui::Pos2::new(x, y));
-                    
+
+                    // TODO: Window positioning would require platform-specific Win32 API calls
+                    // For PoC, the window appears at a fixed position
+
                     ctx.request_repaint();
                 }
                 AppEvent::SelectionCleared => {
@@ -52,13 +46,9 @@ impl App for PopWinApp {
         }
 
         if !self.visible {
-            frame.set_visible(false);
-            // Low CPU usage when hidden: wait for events
-            // We sleep a bit to avoid busy loop if event channel is empty? 
-            // improved by using request_repaint on event actually.
+            // Don't render anything when not visible
+            // The window will still exist but be empty/transparent
             return;
-        } else {
-            frame.set_visible(true);
         }
 
         // Apply custom window styling for the toolbar look
@@ -71,29 +61,17 @@ impl App for PopWinApp {
         egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.style_mut().spacing.item_spacing = egui::vec2(5.0, 0.0);
-                
+
                 if ui.button("📋 Copy").clicked() {
                     actions::copy_selection(&self.selected_text);
                     self.visible = false;
-                    frame.set_visible(false);
-                }
-                if ui.button("✂️ Cut").clicked() {
-                    actions::cut_selection(); // Note: Cut might need focus handling
-                    self.visible = false;
-                    frame.set_visible(false);
                 }
                 if ui.button("📄 Paste").clicked() {
-                    actions::paste(); // Note: Paste might need focus handling
+                    actions::paste();
                     self.visible = false;
-                    frame.set_visible(false);
-                }
-                if ui.button("🔍 Perplexity").clicked() {
-                    actions::search_perplexity(&self.selected_text);
-                    self.visible = false;
-                    frame.set_visible(false);
                 }
             });
-            
+
             // Optional: Show snippet of text for confirmation
             // let display_text = if self.selected_text.len() > 20 {
             //     format!("{}...", &self.selected_text[..20])
@@ -102,7 +80,7 @@ impl App for PopWinApp {
             // };
             // ui.weak(display_text);
         });
-        
+
         // Clicking outside should handle auto-hide - this is tricky with global transparent window
         // For PoC, we rely on "SelectionCleared" event or manual button click.
     }
