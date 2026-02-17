@@ -48,15 +48,21 @@ impl App for PopWinApp {
             }
         }
 
-        if !self.visible {
-            // Don't render anything when not visible
-            // The window will still exist but be empty/transparent
+        // Fade-in/fade-out animation (150ms)
+        let alpha = ctx.animate_bool_with_time(
+            egui::Id::new("toolbar_fade"),
+            self.visible,
+            0.15,
+        );
+
+        if alpha == 0.0 {
             return;
         }
 
-        // Apply custom window styling for the toolbar look
+        // Apply custom window styling with animated opacity
         let panel_frame = egui::Frame::window(&ctx.style())
-            .fill(egui::Color32::from_rgba_premultiplied(30, 30, 30, 240)) // Dark semi-transparent
+            .fill(egui::Color32::from_rgba_premultiplied(30, 30, 30, 240))
+            .multiply_with_opacity(alpha)
             .rounding(8.0)
             .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(80)))
             .inner_margin(8.0);
