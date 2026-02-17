@@ -32,13 +32,6 @@ impl App for PopWinApp {
                     self.selected_text = text;
                     self.position = position;
                     self.visible = true;
-
-                    // Position toolbar to the left of the selection
-                    // Offset left by toolbar width (estimated 80px) and align vertically with selection
-                    let x = (position.0 - 90) as f32;
-                    let y = position.1 as f32;
-
-                    ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(egui::Pos2::new(x, y)));
                     ctx.request_repaint();
                 }
                 AppEvent::SelectionCleared => {
@@ -58,6 +51,12 @@ impl App for PopWinApp {
         if alpha == 0.0 {
             return;
         }
+
+        // Slide up from bottom: offset decreases from 10px to 0px as alpha goes 0→1
+        let slide_offset = (1.0 - alpha) * 10.0;
+        let x = (self.position.0 - 90) as f32;
+        let y = self.position.1 as f32 + slide_offset;
+        ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(egui::Pos2::new(x, y)));
 
         // Apply custom window styling with animated opacity
         let panel_frame = egui::Frame::window(&ctx.style())
