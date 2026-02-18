@@ -38,6 +38,32 @@ cargo build --release
 ```
 生成された実行ファイルは `target/release/popwin.exe` にあります。
 
+## Features
+- **Floating Toolbar**: Automatically appears near the mouse cursor after text selection (drag).
+- **Clipboard Actions**: Copy, Cut, and Paste buttons.
+- **AI Search**: Quick search on Perplexity.ai.
+- **In-App Translation**: Real-time English-to-Japanese translation using Google Translate API (Async).
+- **Cross-Platform**: Full logic on Windows, TUI-based simulation mode on macOS/Linux.
+
+## How to Run
+
+### Windows (Production)
+1. Ensure Rust is installed.
+2. Run `cargo run --release`.
+3. Select any text in any application by dragging with the left mouse button.
+4. The floating toolbar will appear. Click buttons to perform actions.
+5. Click "Quit App" to exit.
+
+### macOS/Linux (Simulation)
+1. Run `cargo run`.
+2. A TUI simulation will start, showing how the app reacts to events and performs translations.
+
+## Architecture
+- **Hooks**: Windows low-level mouse hooks (`SetWindowsHookExW`).
+- **Automation**: UI Automation API for text extraction without clipboard interference.
+- **GUI**: `egui` with `eframe` (WGPU backend).
+- **Actions**: Async HTTP requests for translation and clipboard manipulation.
+
 ## PoC (概念実証) の機能と制限
 
 現在のバージョン (v0.1 PoC) は以下の機能が実装されています：

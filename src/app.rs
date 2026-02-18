@@ -87,7 +87,8 @@ impl App for PopWinApp {
                         self.visible = false;
                     }
                     if ui.button("✂️ Cut").clicked() {
-                         // Note: Cut implementation missing in actions for now
+                        actions::cut();
+                        self.visible = false;
                     }
                      if ui.button("📄 Paste").clicked() {
                         actions::paste();
@@ -112,6 +113,11 @@ impl App for PopWinApp {
                     ui.separator();
                     // Wrap text if too long
                     ui.add(egui::Label::new(egui::RichText::new(text).color(egui::Color32::LIGHT_BLUE)).wrap(true));
+                }
+
+                ui.separator();
+                if ui.button("🚪 Quit App").clicked() {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
             });
         });

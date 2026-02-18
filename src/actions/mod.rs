@@ -13,6 +13,11 @@ pub fn paste() {
     simulate_ctrl_v();
 }
 
+pub fn cut() {
+    // Simulate Ctrl+X
+    simulate_ctrl_x();
+}
+
 pub fn search_perplexity(text: &str) {
     let url = format!("https://www.perplexity.ai/search?q={}", urlencoding::encode(text));
     if let Err(e) = webbrowser::open(&url) {
@@ -85,11 +90,15 @@ pub fn translate(text: &str) -> String {
 #[cfg(target_os = "windows")]
 mod windows_input {
     use windows::Win32::UI::Input::KeyboardAndMouse::{
-        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_V, VK_CONTROL,
+        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_V, VK_X, VK_CONTROL,
     };
 
     pub fn simulate_ctrl_v() {
         unsafe { send_combo(VK_V); }
+    }
+
+    pub fn simulate_ctrl_x() {
+        unsafe { send_combo(VK_X); }
     }
 
     unsafe fn send_combo(key: windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY) {
@@ -107,6 +116,10 @@ mod windows_input {
 mod dummy_input {
     pub fn simulate_ctrl_v() {
         println!("Action: Paste (Simulated)");
+    }
+
+    pub fn simulate_ctrl_x() {
+        println!("Action: Cut (Simulated)");
     }
 }
 
