@@ -1,6 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // Hide console in release
 
+#[cfg(target_os = "windows")]
 use eframe::egui;
+#[cfg(not(target_os = "windows"))]
+use eframe::egui as _; // Keep it if needed for AppEvent but let's check.
+// AppEvent uses deriving Debug, Clone which are standard. 
+// It doesn't use egui types. So egui is only for run_native.
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::info;
 
@@ -9,6 +14,7 @@ mod automation;
 mod actions;
 mod app;
 
+#[cfg(target_os = "windows")]
 use app::PopWinApp;
 
 #[derive(Debug, Clone)]
