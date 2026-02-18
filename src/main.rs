@@ -38,26 +38,94 @@ fn main() -> Result<(), eframe::Error> {
     // It detects drag, then spawns a thread to get text, then sends AppEvent::SelectionDetected.
     // This is fine for PoC.
 
-    let mut viewport_builder = egui::ViewportBuilder::default()
-        .with_decorations(false) // Borderless
-        .with_transparent(true)  // Transparent
-        .with_always_on_top()
-        .with_inner_size([80.0, 120.0]) // Vertical layout: narrow and tall
-        .with_position(egui::Pos2::new(100.0, 100.0)); // Initial
-
+    // Windows (Production): Run GUI
     #[cfg(target_os = "windows")]
     {
-        viewport_builder = viewport_builder.with_taskbar(false);
-    }
-    
-    let options = eframe::NativeOptions {
-        viewport: viewport_builder,
-        ..Default::default()
-    };
+        let mut viewport_builder = egui::ViewportBuilder::default()
+            .with_decorations(false) // Borderless
+            .with_transparent(true)  // Transparent
+            .with_always_on_top()
+            .with_inner_size([80.0, 120.0]) // Vertical layout
+            .with_position(egui::Pos2::new(100.0, 100.0));
 
-    eframe::run_native(
-        "PopWin",
-        options,
-        Box::new(|cc| Box::new(PopWinApp::new(cc, rx))),
-    )
+        viewport_builder = viewport_builder.with_taskbar(false).with_always_on_top();
+        
+        let options = eframe::NativeOptions {
+            viewport: viewport_builder,
+            ..Default::default()
+        };
+
+        eframe::run_native(
+            "PopWin",
+            options,
+            Box::new(|cc| Box::new(PopWinApp::new(cc, rx))),
+        )
+    }
+
+    // macOS/Others (Simulation): TUI Simulation with ANSI codes
+    #[cfg(not(target_os = "windows"))]
+    {
+        use std::io::{Write, stdout};
+        use std::thread::sleep;
+        use std::time::Duration;
+
+        // Clear screen and hide cursor
+        print!("\x1b[2J\x1b[?25l"); 
+        
+        println!("\x1b[1;1HPopWin Simulation (macOS TUI Mode)");
+        println!("\x1b[3;1HWaiting for text selection...");
+
+        loop {
+            if let Ok(event) = rx.recv() {
+                match event {
+                    AppEvent::SelectionDetected { text, position } => {
+                        // Simulate Fade-In Animation
+                        for i in 1..=5 {
+                            print!("\x1b[2J"); // Clear
+                            print!("\x1b[1;1HPopWin Simulation (macOS TUI Mode)");
+                            
+                            // Draw fake window with increasing brightness/frame
+                            let color = 30 + i; // 31-35 (Red to Magenta etc, simpler than RGB)
+                            let frame_color = if i < 3 { 90 } else { 37 }; // Dark gray to White
+                            
+                            // Draw centered window
+                            let x = 10;
+                            let y = 5;
+                            print!("\x1b[{};{}H\x1b[{}m+-------------------------+", y, x, frame_color);
+                            print!("\x1b[{};{}H|  \x1b[1mPopWin Toolbar\x1b[0m         |", y+1, x);
+                            print!("\x1b[{};{}H|-------------------------|", y+2, x);
+                            print!("\x1b[{};{}H|  [C] Copy               |", y+3, x);
+                            print!("\x1b[{};{}H|  [X] Cut                |", y+4, x);
+                            print!("\x1b[{};{}H|  [V] Paste              |", y+5, x);
+                            print!("\x1b[{};{}H|                         |", y+6, x);
+                            print!("\x1b[{};{}H|  Selected: \x1b[36m{}\x1b[0m   |", y+7, x, &text[..10.min(text.len())]); 
+                            print!("\x1b[{};{}H+-------------------------+", y+8, x);
+                            
+                            print!("\x1b[{};{}H(Animation Frame: {}/5)", y+10, x, i);
+                            stdout().flush().unwrap();
+                            sleep(Duration::from_millis(150));
+                        }
+
+                        // Interaction simulation
+                        sleep(Duration::from_secs(1));
+                        print!("\x1b[12;10H\x1b[32m> User clicked [Copy]\x1b[0m");
+                        stdout().flush().unwrap();
+                        sleep(Duration::from_secs(1));
+                        
+                        actions::copy_selection(&text);
+                        print!("\x1b[13;10H\x1b[32m> Copied to clipboard!\x1b[0m");
+                        stdout().flush().unwrap();
+                        
+                        sleep(Duration::from_secs(2));
+                        break;
+                    }
+                    AppEvent::SelectionCleared => {}
+                }
+            }
+        }
+        
+        // Reset cursor and clear
+        print!("\x1b[?25h\nDone.\n");
+        Ok(())
+    }
 }
