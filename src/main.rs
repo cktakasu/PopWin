@@ -79,6 +79,16 @@ fn main() -> Result<(), eframe::Error> {
             if let Ok(event) = rx.recv() {
                 match event {
                     AppEvent::SelectionDetected { text, position } => {
+                        // Draw centered window
+                        let x = 10;
+                        let y = 5;
+                        let width = 25;
+                        let text_display = if text.len() > 10 {
+                            format!("{}...", &text[..10])
+                        } else {
+                            format!("{: <13}", text) // Pad to 13 chars (25 - 12 prefix)
+                        };
+
                         // Simulate Fade-In Animation
                         for i in 1..=5 {
                             print!("\x1b[2J"); // Clear
@@ -88,32 +98,35 @@ fn main() -> Result<(), eframe::Error> {
                             let color = 30 + i; // 31-35 (Red to Magenta etc, simpler than RGB)
                             let frame_color = if i < 3 { 90 } else { 37 }; // Dark gray to White
                             
-                            // Draw centered window
-                            let x = 10;
-                            let y = 5;
+                            // Top border
                             print!("\x1b[{};{}H\x1b[{}m+-------------------------+", y, x, frame_color);
-                            print!("\x1b[{};{}H|  \x1b[1mPopWin Toolbar\x1b[0m         |", y+1, x);
+                            // Title
+                            print!("\x1b[{};{}H|  \x1b[1mPopWin Toolbar\x1b[0m\x1b[{}m         |", y+1, x, frame_color);
+                            // Separator
                             print!("\x1b[{};{}H|-------------------------|", y+2, x);
+                            // Buttons
                             print!("\x1b[{};{}H|  [C] Copy               |", y+3, x);
                             print!("\x1b[{};{}H|  [X] Cut                |", y+4, x);
                             print!("\x1b[{};{}H|  [V] Paste              |", y+5, x);
                             print!("\x1b[{};{}H|                         |", y+6, x);
-                            print!("\x1b[{};{}H|  Selected: \x1b[36m{}\x1b[0m   |", y+7, x, &text[..10.min(text.len())]); 
-                            print!("\x1b[{};{}H+-------------------------+", y+8, x);
+                            // Selected Text (Fixed width)
+                            print!("\x1b[{};{}H|  Selected: \x1b[36m{}\x1b[0m\x1b[{}m|", y+7, x, text_display, frame_color); 
+                            // Bottom border
+                            print!("\x1b[{};{}H+-------------------------+\x1b[0m", y+8, x);
                             
-                            print!("\x1b[{};{}H(Animation Frame: {}/5)", y+10, x, i);
+                            print!("\x1b[{};{}H(Animation Frame: {}/5)", y+13, x, i);
                             stdout().flush().unwrap();
                             sleep(Duration::from_millis(150));
                         }
 
                         // Interaction simulation
                         sleep(Duration::from_secs(1));
-                        print!("\x1b[12;10H\x1b[32m> User clicked [Copy]\x1b[0m");
+                        print!("\x1b[{};{}H\x1b[32m> User clicked [Copy]\x1b[0m", y+10, x);
                         stdout().flush().unwrap();
                         sleep(Duration::from_secs(1));
                         
                         actions::copy_selection(&text);
-                        print!("\x1b[13;10H\x1b[32m> Copied to clipboard!\x1b[0m");
+                        print!("\x1b[{};{}H\x1b[32m> Copied to clipboard!\x1b[0m", y+11, x);
                         stdout().flush().unwrap();
                         
                         sleep(Duration::from_secs(2));
