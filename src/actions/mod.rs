@@ -1,4 +1,6 @@
 use arboard::Clipboard;
+use crossbeam_channel::Sender;
+use crate::AppEvent;
 
 pub fn copy_selection(text: &str) {
     if let Ok(mut clipboard) = Clipboard::new() {
@@ -18,6 +20,53 @@ pub fn search_perplexity(text: &str) {
     }
 }
 
+pub fn translate_async(text: &str, sender: Sender<AppEvent>) {
+    let text = text.to_string();
+    std::thread::spawn(move || {
+        let result = translate_with_google(&text);
+        let _ = sender.send(AppEvent::TranslationReceived(result));
+    });
+}
+
+fn translate_with_google(text: &str) -> String {
+    let client = reqwest::blocking::Client::new();
+    let url = "https://translate.googleapis.com/translate_a/single";
+    let params = [
+        ("client", "gtx"),
+        ("sl", "auto"),
+        ("tl", "ja"),
+        ("dt", "t"),
+        ("q", text),
+    ];
+
+    match client.get(url).query(&params).send() {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                if let Ok(json) = resp.json::<serde_json::Value>() {
+                    // Navigate JSON: [[[ "翻訳結果", "Original", ...], ...], ...]
+                    if let Some(sentences) = json.as_array().and_then(|a| a.get(0)).and_then(|v| v.as_array()) {
+                        let mut result = String::new();
+                        for sentence in sentences {
+                            if let Some(s) = sentence.as_array().and_then(|a| a.get(0)).and_then(|v| v.as_str()) {
+                                result.push_str(s);
+                            }
+                        }
+                        if !result.is_empty() {
+                            return result;
+                        }
+                    }
+                }
+            }
+            "翻訳エラー".to_string()
+        }
+        Err(e) => {
+            log::error!("Translation failed: {}", e);
+            "通信エラー".to_string()
+        }
+    }
+}
+
+// Deprecated synchronous dummy translation for reference
 pub fn translate(text: &str) -> String {
     let text = text.trim();
     if text.eq_ignore_ascii_case("hello") {
@@ -30,7 +79,6 @@ pub fn translate(text: &str) -> String {
         return "Rust (プログラミング言語)".to_string();
     }
     
-    // Default dummy translation for PoC
     format!("翻訳(PoC): {} の日本語訳サンプル", text)
 }
 

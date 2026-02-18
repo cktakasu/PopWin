@@ -18,6 +18,7 @@ pub enum AppEvent {
         position: (i32, i32),
     },
     SelectionCleared,
+    TranslationReceived(String),
 }
 
 fn main() -> Result<(), eframe::Error> {
@@ -30,13 +31,6 @@ fn main() -> Result<(), eframe::Error> {
     // Start global hook in a background thread
     let tx_clone = tx.clone();
     hooks::start_global_hook(tx_clone);
-
-    // TODO: In a real app, we might need a separate thread for the automation/text extraction logic 
-    // to avoid blocking the hook thread, but for this PoC architecture:
-    // 1. Hook detects drag -> sends event to Main or Automation Thread?
-    // Current design in hooks/mod.rs: 
-    // It detects drag, then spawns a thread to get text, then sends AppEvent::SelectionDetected.
-    // This is fine for PoC.
 
     // Windows (Production): Run GUI
     #[cfg(target_os = "windows")]
@@ -55,10 +49,11 @@ fn main() -> Result<(), eframe::Error> {
             ..Default::default()
         };
 
+        let tx_options = tx.clone();
         eframe::run_native(
             "PopWin",
             options,
-            Box::new(|cc| Box::new(PopWinApp::new(cc, rx))),
+            Box::new(|cc| Box::new(PopWinApp::new(cc, rx, tx_options))),
         )
     }
 
@@ -75,18 +70,24 @@ fn main() -> Result<(), eframe::Error> {
         println!("\x1b[1;1HPopWin Simulation (macOS TUI Mode)");
         println!("\x1b[3;1HWaiting for text selection...");
 
+        // Keep track of window state for redraw
+        let mut last_text = String::new();
+        let mut last_pos = (10, 5); // Default sim pos
+
         loop {
             if let Ok(event) = rx.recv() {
                 match event {
-                    AppEvent::SelectionDetected { text, position } => {
+                    AppEvent::SelectionDetected { text, position: _ } => {
+                        last_text = text.clone();
                         // Draw centered window
                         let x = 10;
                         let y = 5;
-                        let width = 25;
+                        last_pos = (x, y);
+
                         let text_display = if text.len() > 10 {
                             format!("{}...", &text[..10])
                         } else {
-                            format!("{: <13}", text) // Pad to 13 chars (25 - 12 prefix)
+                            format!("{: <13}", text)
                         };
 
                         // Simulate Fade-In Animation
@@ -94,8 +95,6 @@ fn main() -> Result<(), eframe::Error> {
                             print!("\x1b[2J"); // Clear
                             print!("\x1b[1;1HPopWin Simulation (macOS TUI Mode)");
                             
-                            // Draw fake window with increasing brightness/frame
-                            let color = 30 + i; // 31-35 (Red to Magenta etc, simpler than RGB)
                             let frame_color = if i < 3 { 90 } else { 37 }; // Dark gray to White
                             
                             // Top border
@@ -106,9 +105,9 @@ fn main() -> Result<(), eframe::Error> {
                             print!("\x1b[{};{}H|-------------------------|", y+2, x);
                             // Buttons
                             print!("\x1b[{};{}H|  [C] Copy   [V] Paste    |", y+3, x);
-                            print!("\x1b[{};{}H|  [S] Search [E] EN       |", y+4, x); // Added Search/EN
+                            print!("\x1b[{};{}H|  [S] Search [E] EN       |", y+4, x);
                             print!("\x1b[{};{}H|                         |", y+5, x);
-                            // Selected Text (Fixed width)
+                            // Selected Text
                             print!("\x1b[{};{}H|  Selected: \x1b[36m{}\x1b[0m\x1b[{}m|", y+6, x, text_display, frame_color); 
                             // Bottom border
                             print!("\x1b[{};{}H+-------------------------+\x1b[0m", y+7, x);
@@ -120,17 +119,26 @@ fn main() -> Result<(), eframe::Error> {
 
                         // Interaction simulation: Click EN
                         sleep(Duration::from_secs(1));
-                        print!("\x1b[{};{}H\x1b[32m> User clicked [EN]\x1b[0m", y+10, x);
+                        print!("\x1b[{};{}H\x1b[32m> User clicked [EN] (Requesting Translation...)\x1b[0m", y+10, x);
                         stdout().flush().unwrap();
-                        sleep(Duration::from_secs(1));
                         
-                        let translation = actions::translate(&text);
-                        
+                        // Call async translation
+                        actions::translate_async(&text, tx.clone());
+                    }
+                    AppEvent::TranslationReceived(translation) => {
+                         let (x, y) = last_pos;
+                         let text_display = if last_text.len() > 10 {
+                            format!("{}...", &last_text[..10])
+                        } else {
+                            format!("{: <13}", last_text)
+                        };
+                        let frame_color = 37;
+
                         // Redraw window with translation result
                         print!("\x1b[2J"); // Clear
                         print!("\x1b[1;1HPopWin Simulation (macOS TUI Mode)");
-                        let frame_color = 37;
-                        // Top border
+                        
+                        // Re-draw UI (simplified)
                         print!("\x1b[{};{}H\x1b[{}m+-------------------------+", y, x, frame_color);
                         print!("\x1b[{};{}H|  \x1b[1mPopWin Toolbar\x1b[0m\x1b[{}m         |", y+1, x, frame_color);
                         print!("\x1b[{};{}H|-------------------------|", y+2, x);
@@ -141,21 +149,17 @@ fn main() -> Result<(), eframe::Error> {
                         // Translation result
                         print!("\x1b[{};{}H|-------------------------|", y+7, x);
                         let safe_translation: String = translation.chars().take(20).collect();
-                        print!("\x1b[{};{}H|  \x1b[33m{}\x1b[0m\x1b[{}m", y+8, x, safe_translation, frame_color); 
-                        // Note: Padding omitted to avoid complex width calculation in TUI. 
-                        // Closing pipe manually placed might be misaligned for wide chars.
-                        // Ideally we print the pipe at exact position x+26 regardless of content length?
-                        // No, ANSI cursor positioning is best.
+                        print!("\x1b[{};{}H|  \x1b[33m{: <23}\x1b[0m\x1b[{}m", y+8, x, safe_translation, frame_color); // Simplified padding
                         print!("\x1b[{};{}H|", y+8, x+26); 
                         
                         // Bottom border
                         print!("\x1b[{};{}H+-------------------------+\x1b[0m", y+9, x);
 
-                        print!("\x1b[{};{}H\x1b[32m> Translation displayed!\x1b[0m", y+12, x);
+                        print!("\x1b[{};{}H\x1b[32m> Translation Received: {}\x1b[0m", y+12, x, translation);
                         stdout().flush().unwrap();
                         
                         sleep(Duration::from_secs(3));
-                        break;
+                        break; // End simulation loop
                     }
                     AppEvent::SelectionCleared => {}
                 }
