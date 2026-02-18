@@ -105,31 +105,56 @@ fn main() -> Result<(), eframe::Error> {
                             // Separator
                             print!("\x1b[{};{}H|-------------------------|", y+2, x);
                             // Buttons
-                            print!("\x1b[{};{}H|  [C] Copy               |", y+3, x);
-                            print!("\x1b[{};{}H|  [X] Cut                |", y+4, x);
-                            print!("\x1b[{};{}H|  [V] Paste              |", y+5, x);
-                            print!("\x1b[{};{}H|                         |", y+6, x);
+                            print!("\x1b[{};{}H|  [C] Copy   [V] Paste    |", y+3, x);
+                            print!("\x1b[{};{}H|  [S] Search [E] EN       |", y+4, x); // Added Search/EN
+                            print!("\x1b[{};{}H|                         |", y+5, x);
                             // Selected Text (Fixed width)
-                            print!("\x1b[{};{}H|  Selected: \x1b[36m{}\x1b[0m\x1b[{}m|", y+7, x, text_display, frame_color); 
+                            print!("\x1b[{};{}H|  Selected: \x1b[36m{}\x1b[0m\x1b[{}m|", y+6, x, text_display, frame_color); 
                             // Bottom border
-                            print!("\x1b[{};{}H+-------------------------+\x1b[0m", y+8, x);
+                            print!("\x1b[{};{}H+-------------------------+\x1b[0m", y+7, x);
                             
                             print!("\x1b[{};{}H(Animation Frame: {}/5)", y+13, x, i);
                             stdout().flush().unwrap();
                             sleep(Duration::from_millis(150));
                         }
 
-                        // Interaction simulation
+                        // Interaction simulation: Click EN
                         sleep(Duration::from_secs(1));
-                        print!("\x1b[{};{}H\x1b[32m> User clicked [Copy]\x1b[0m", y+10, x);
+                        print!("\x1b[{};{}H\x1b[32m> User clicked [EN]\x1b[0m", y+10, x);
                         stdout().flush().unwrap();
                         sleep(Duration::from_secs(1));
                         
-                        actions::copy_selection(&text);
-                        print!("\x1b[{};{}H\x1b[32m> Copied to clipboard!\x1b[0m", y+11, x);
+                        let translation = actions::translate(&text);
+                        
+                        // Redraw window with translation result
+                        print!("\x1b[2J"); // Clear
+                        print!("\x1b[1;1HPopWin Simulation (macOS TUI Mode)");
+                        let frame_color = 37;
+                        // Top border
+                        print!("\x1b[{};{}H\x1b[{}m+-------------------------+", y, x, frame_color);
+                        print!("\x1b[{};{}H|  \x1b[1mPopWin Toolbar\x1b[0m\x1b[{}m         |", y+1, x, frame_color);
+                        print!("\x1b[{};{}H|-------------------------|", y+2, x);
+                        print!("\x1b[{};{}H|  [C] Copy   [V] Paste    |", y+3, x);
+                        print!("\x1b[{};{}H|  [S] Search [E] EN       |", y+4, x);
+                        print!("\x1b[{};{}H|                         |", y+5, x);
+                        print!("\x1b[{};{}H|  Selected: \x1b[36m{}\x1b[0m\x1b[{}m|", y+6, x, text_display, frame_color); 
+                        // Translation result
+                        print!("\x1b[{};{}H|-------------------------|", y+7, x);
+                        let safe_translation: String = translation.chars().take(20).collect();
+                        print!("\x1b[{};{}H|  \x1b[33m{}\x1b[0m\x1b[{}m", y+8, x, safe_translation, frame_color); 
+                        // Note: Padding omitted to avoid complex width calculation in TUI. 
+                        // Closing pipe manually placed might be misaligned for wide chars.
+                        // Ideally we print the pipe at exact position x+26 regardless of content length?
+                        // No, ANSI cursor positioning is best.
+                        print!("\x1b[{};{}H|", y+8, x+26); 
+                        
+                        // Bottom border
+                        print!("\x1b[{};{}H+-------------------------+\x1b[0m", y+9, x);
+
+                        print!("\x1b[{};{}H\x1b[32m> Translation displayed!\x1b[0m", y+12, x);
                         stdout().flush().unwrap();
                         
-                        sleep(Duration::from_secs(2));
+                        sleep(Duration::from_secs(3));
                         break;
                     }
                     AppEvent::SelectionCleared => {}
