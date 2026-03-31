@@ -2,16 +2,13 @@
 
 #[cfg(target_os = "windows")]
 use eframe::egui;
-#[cfg(not(target_os = "windows"))]
-use eframe::egui as _; // Keep it if needed for AppEvent but let's check.
-// AppEvent uses deriving Debug, Clone which are standard. 
-// It doesn't use egui types. So egui is only for run_native.
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::info;
 
 mod hooks;
 mod automation;
 mod actions;
+#[cfg(target_os = "windows")]
 mod app;
 
 #[cfg(target_os = "windows")]
@@ -27,7 +24,7 @@ pub enum AppEvent {
     TranslationReceived(String),
 }
 
-fn main() -> Result<(), eframe::Error> {
+fn main() {
     env_logger::init();
     info!("Starting PopWin...");
 
@@ -60,7 +57,7 @@ fn main() -> Result<(), eframe::Error> {
             "PopWin",
             options,
             Box::new(|cc| Box::new(PopWinApp::new(cc, rx, tx_options))),
-        )
+        ).expect("Failed to start GUI");
     }
 
     // macOS/Others (Simulation): TUI Simulation with ANSI codes
@@ -174,6 +171,5 @@ fn main() -> Result<(), eframe::Error> {
         
         // Reset cursor and clear
         print!("\x1b[?25h\nDone.\n");
-        Ok(())
     }
 }
